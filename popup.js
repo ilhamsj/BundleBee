@@ -396,12 +396,20 @@ function renderList(assets) {
         preview.playsInline = true;
         preview.style.maxWidth = "100%";
         preview.style.maxHeight = "150px";
+        try {
+          preview.referrerPolicy = "origin-when-cross-origin";
+        } catch (_) {}
+        preview.onerror = () => tryProxyMediaSrc(preview, url);
       } else {
         preview = document.createElement("img");
         preview.src = url;
         preview.loading = "lazy";
         preview.style.maxWidth = "100%";
         preview.style.maxHeight = "150px";
+        try {
+          preview.referrerPolicy = "origin-when-cross-origin";
+        } catch (_) {}
+        preview.onerror = () => tryProxyMediaSrc(preview, url);
       }
 
       const link = document.createElement("a");
@@ -502,4 +510,51 @@ async function headContentLength(url) {
     }
   } catch (_) {}
   return undefined;
+}
+
+function getReferrerForUrl(url) {
+  try {
+    const u = new URL(url);
+    const host = u.hostname.toLowerCase();
+    if (host.endsWith("midjourney.com")) return "https://www.midjourney.com/";
+  } catch (_) {}
+  return undefined;
+}
+
+async function fetchAsUint8(url) {
+  const ref = getReferrerForUrl(url);
+  const res = await fetch(url, {
+    mode: "cors",
+    credentials: "include",
+    referrer: ref,
+    referrerPolicy: ref ? "strict-origin-when-cross-origin" : undefined,
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  const buf = await res.arrayBuffer();
+  return new Uint8Array(buf);
+}
+
+function guessMimeFromUrl(url) {
+  const lower = url.split("?")[0].toLowerCase();
+  if (/\.(mp4|webm|ogg)$/.test(lower)) return "video/mp4";
+  if (/\.(jpg|jpeg)$/.test(lower)) return "image/jpeg";
+  if (/\.(png)$/.test(lower)) return "image/png";
+  if (/\.(gif)$/.test(lower)) return "image/gif";
+  if (/\.(svg)$/.test(lower)) return "image/svg+xml";
+  if (/\.(webp)$/.test(lower)) return "image/webp";
+  if (/\.(avif)$/.test(lower)) return "image/avif";
+  return "application/octet-stream";
+}
+
+async function tryProxyMediaSrc(el, url) {
+  if (!el || el.dataset.proxied === "1") return;
+  el.dataset.proxied = "1";
+  try {
+    const data = await fetchAsUint8(url);
+    const blob = new Blob([data.buffer], { type: guessMimeFromUrl(url) });
+    const objUrl = URL.createObjectURL(blob);
+    el.src = objUrl;
+  } catch (_) {
+    // leave as-is
+  }
 }

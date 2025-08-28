@@ -134,10 +134,18 @@ function renderGrid() {
       media.preload = "metadata";
       media.muted = true;
       media.playsInline = true;
+      try {
+        media.referrerPolicy = "origin-when-cross-origin";
+      } catch (_) {}
+      media.onerror = () => tryProxyMediaSrc(media, url);
     } else {
       media = document.createElement("img");
       media.src = url;
       media.loading = "lazy";
+      try {
+        media.referrerPolicy = "origin-when-cross-origin";
+      } catch (_) {}
+      media.onerror = () => tryProxyMediaSrc(media, url);
     }
 
     const link = document.createElement("a");
@@ -162,6 +170,31 @@ function renderGrid() {
     frag.appendChild(tile);
   });
   grid.appendChild(frag);
+}
+
+async function tryProxyMediaSrc(el, url) {
+  if (!el || el.dataset.proxied === "1") return;
+  el.dataset.proxied = "1";
+  try {
+    const data = await fetchAsUint8(url);
+    const blob = new Blob([data.buffer], { type: guessMimeFromUrl(url) });
+    const objUrl = URL.createObjectURL(blob);
+    el.src = objUrl;
+  } catch (_) {
+    // leave the link for manual open
+  }
+}
+
+function guessMimeFromUrl(url) {
+  const lower = url.split("?")[0].toLowerCase();
+  if (/\.(mp4|webm|ogg)$/.test(lower)) return "video/mp4";
+  if (/\.(jpg|jpeg)$/.test(lower)) return "image/jpeg";
+  if (/\.(png)$/.test(lower)) return "image/png";
+  if (/\.(gif)$/.test(lower)) return "image/gif";
+  if (/\.(svg)$/.test(lower)) return "image/svg+xml";
+  if (/\.(webp)$/.test(lower)) return "image/webp";
+  if (/\.(avif)$/.test(lower)) return "image/avif";
+  return "application/octet-stream";
 }
 
 async function loadAssets() {

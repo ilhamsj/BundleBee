@@ -126,9 +126,65 @@ function getAssetsFromPage() {
     return /^https?:\/\//i.test(candidate);
   }
 
+  function stripCssUrlWrapper(val) {
+    if (val == null) return "";
+    let s = String(val).trim();
+    // remove surrounding quotes
+    if (
+      (s.startsWith('"') && s.endsWith('"')) ||
+      (s.startsWith("'") && s.endsWith("'"))
+    ) {
+      s = s.slice(1, -1).trim();
+    }
+    // remove url(...) wrapper
+    const urlWrap = s.match(/^url\((.*)\)$/i);
+    if (urlWrap) {
+      s = urlWrap[1].trim();
+      if (
+        (s.startsWith('"') && s.endsWith('"')) ||
+        (s.startsWith("'") && s.endsWith("'"))
+      ) {
+        s = s.slice(1, -1).trim();
+      }
+    }
+    return s;
+  }
+
+  function extractUrlsFromBackground(bg) {
+    const found = [];
+    if (!bg || bg === "none") return found;
+    // Capture url(...) entries
+    const urlRegexGlobal = /url\(\s*(["']?.*?["']?)\s*\)/gi;
+    let match;
+    while ((match = urlRegexGlobal.exec(bg)) !== null) {
+      const raw = stripCssUrlWrapper(match[1]);
+      if (raw) found.push(raw);
+    }
+    // Capture image-set(...) entries that may be quoted without url(...)
+    const imageSetRegex = /image-set\(([^)]+)\)/gi;
+    let isMatch;
+    while ((isMatch = imageSetRegex.exec(bg)) !== null) {
+      const inside = isMatch[1];
+      const parts = inside.split(",");
+      parts.forEach((part) => {
+        if (/url\(/i.test(part)) return; // already captured above
+        const tokenMatch = part.trim().match(/"([^"]+)"|'([^']+)'|([^\s]+)/);
+        const candidate = tokenMatch
+          ? tokenMatch[1] || tokenMatch[2] || tokenMatch[3]
+          : "";
+        const raw = stripCssUrlWrapper(candidate);
+        if (raw) found.push(raw);
+      });
+    }
+    // Deduplicate
+    return Array.from(new Set(found));
+  }
+
   function toAbsoluteUrl(rawUrl) {
+    // Normalize potential CSS url(...) wrappers first
+    const normalized = stripCssUrlWrapper(rawUrl);
     try {
-      const abs = new URL(rawUrl, document.baseURI).href;
+      const abs = new URL(normalized, document.baseURI).href;
       return abs;
     } catch (e) {
       return null;
@@ -240,31 +296,12 @@ function getAssetsFromPage() {
   function collectBackgroundImages() {
     const results = [];
     const all = [...document.querySelectorAll("*")];
-    const urlRegex = /url\(["']?(.*?)["']?\)/g;
-    const imageSetRegex = /image-set\((.*?)\)/g;
 
     all.forEach((el) => {
       const bg = getComputedStyle(el).backgroundImage;
       if (!bg || bg === "none") return;
 
-      const urls = [];
-      let match;
-
-      // url(...) patterns
-      while ((match = urlRegex.exec(bg)) !== null) {
-        if (match[1]) urls.push(match[1]);
-      }
-
-      // image-set(...) patterns
-      let isMatch;
-      while ((isMatch = imageSetRegex.exec(bg)) !== null) {
-        const inside = isMatch[1];
-        const parts = inside.split(",");
-        parts.forEach((item) => {
-          const first = item.trim().split(" ")[0].replace(/["']/g, "");
-          if (first) urls.push(first);
-        });
-      }
+      const urls = extractUrlsFromBackground(bg);
 
       urls.forEach((raw) => {
         const abs = toAbsoluteUrl(raw);

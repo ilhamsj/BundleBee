@@ -77,7 +77,7 @@ Notes: New tab that shows all assets in a responsive grid. Tiles open originals.
       Acceptance:
 - [x] New tab opens showing all assets in a grid on test pages.
 - [x] Clicking a tile opens the original asset in a new browser tab.
-- [ ] Grid renders quickly (< ~1s initial view) and scrolls smoothly.
+- [x] Grid renders quickly (< ~1s initial view) and scrolls smoothly.
 
 ---
 
@@ -91,16 +91,24 @@ Notes: Replaced by gallery as primary surface. If needed later, implement as opt
 
 ### Phase 4 — Multi-Select & Download (Advanced)
 
-Notes: Allow selecting multiple assets and downloading via Chrome Downloads API; optional ZIP.
+Notes: Allow selecting multiple assets and downloading via Chrome Downloads API; optional ZIP later. Prefer multi-select in `gallery.html` for space and persistence.
 
-- [ ] Add checkbox per asset in the popup list and a “Select All” control.
-- [ ] Add “Download Selected” button.
-- [ ] Implement one-by-one downloads via `chrome.downloads.download` with sensible filenames.
-- [ ] Optional: Add ZIP option using JSZip; stream blobs and export as a single ZIP.
-- [ ] Show progress and report failed downloads.
+- [ ] Add checkbox per asset and a "Select All" control (primarily in `gallery.html`).
+- [ ] Add "Download Selected" with two modes:
+  - [x] Quick download: auto-save to default Downloads using structured `filename` (e.g., `AssetExtractor/{domain}/...`).
+  - [x] Save As: set `saveAs: true` to let the user pick folder/filename via the system dialog.
+- [x] Implement one-by-one downloads via `chrome.downloads.download` with deterministic, sanitized filenames.
+- [x] Limit concurrency (3–5) and queue remaining; handle throttling.
+- [x] Show persistent progress per item and report failures (e.g., in gallery list).
+- [ ] Optional (later): ZIP using JSZip or streaming ZIP; enforce size/item caps and graceful abort.
       Acceptance:
-- [ ] One-by-one downloads succeed for at least 5 mixed assets.
-- [ ] ZIP export (if implemented) contains all selected files and is valid.
+- [x] One-by-one downloads succeed for at least 10 images and non-streaming videos.
+- [ ] When "Save As" is enabled, user can choose the destination folder via dialog.
+- [x] Clear per-item success/failure state is visible after completion in the gallery.
+- [x] Filenames are deterministic, collision-free, and organized by domain when auto-saving.
+- [x] Select All works; queue is limited to 3 concurrent downloads.
+- [x] Streaming formats (e.g., .m3u8/.mpd) are skipped with a clear message.
+- [ ] If ZIP is implemented, archive validates and respects size (e.g., 200 MB) and count caps.
 
 ---
 

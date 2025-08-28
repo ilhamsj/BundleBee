@@ -40,6 +40,18 @@
   <body>
     <h2>Assets Gallery</h2>
     <div id="status">Loading...</div>
+    <div
+      id="controls"
+      style="margin-bottom: 12px; display: flex; gap: 12px; align-items: center"
+    >
+      <label><input type="checkbox" id="selectAll" /> Select All</label>
+      <label
+        ><input type="checkbox" id="saveAsToggle" /> Save As (prompt per
+        file)</label
+      >
+      <button id="downloadSelected">Download Selected</button>
+      <span id="progressSummary" style="color: #555; font-size: 12px"></span>
+    </div>
     <div id="grid" class="grid"></div>
     <script src="gallery.js"></script>
   </body>

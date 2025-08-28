@@ -46,17 +46,17 @@ Note: Implemented inline via `chrome.scripting.executeScript` for now; can be ex
 
 Notes: Present results, support quick scanning/preview, and click-through.
 
-- [ ] Render grid/list of assets with:
-  - [ ] Thumbnail for images (`<img>` with `loading="lazy"`).
-  - [ ] Video previews (`<video controls muted preload="metadata" playsinline>`; no autoplay).
-  - [ ] Fallback label for unsupported previews.
-- [ ] Show URL (clickable, truncated visually; full in tooltip).
-- [ ] Add basic empty, loading, and error states.
-- [ ] Add a button to re-run “Get Assets”.
-- [ ] Add “Open All in New Tab” button that opens grid gallery (`gallery.html`).
+- [x] Render grid/list of assets with:
+  - [x] Thumbnail for images (`<img>` with `loading="lazy"`).
+  - [x] Video previews (`<video controls muted preload="metadata" playsinline>`; no autoplay).
+  - [x] Fallback label for unsupported previews.
+- [x] Show URL (clickable, truncated visually; full in tooltip).
+- [x] Add basic empty, loading, and error states.
+- [x] Add a button to re-run “Get Assets”.
+- [x] Add “Open All in New Tab” button that opens grid gallery (`gallery.html`).
       Acceptance:
-- [ ] User can fetch and preview assets from the popup on two different sites.
-- [ ] “Open All in New Tab” opens the gallery with current results.
+- [x] User can fetch and preview assets from the popup on two different sites.
+- [x] “Open All in New Tab” opens the gallery with current results.
 
 ---
 
@@ -64,20 +64,19 @@ Notes: Present results, support quick scanning/preview, and click-through.
 
 Notes: New tab that shows all assets in a responsive grid. Tiles open originals.
 
-- [ ] Create `gallery.html` and `gallery.js`.
-- [ ] From popup, implement “Open All in New Tab”:
-  - [ ] Stash current asset results (e.g., via `chrome.storage.session.set({ assetList })`).
-  - [ ] `chrome.tabs.create({ url: chrome.runtime.getURL('gallery.html') })`.
-- [ ] In `gallery.js`:
-  - [ ] Load assets from `chrome.storage.session.get('assetList')`.
-  - [ ] Render a responsive CSS grid (3–5 columns; adjusts with viewport).
-  - [ ] Lazy-load thumbnails; videos muted, `preload="metadata"`, `playsinline`.
-  - [ ] Each tile opens the original asset URL in a new tab.
-  - [ ] Optional: inline “Details” overlay shows metadata (URL, type, dimensions).
+- [x] Create `gallery.html` and `gallery.js`.
+- [x] From popup, implement “Open All in New Tab”:
+  - [x] Stash current asset results (e.g., via `chrome.storage.session.set({ assetList })`).
+  - [x] `chrome.tabs.create({ url: chrome.runtime.getURL('gallery.html') })`.
+- [x] In `gallery.js`:
+  - [x] Load assets from `chrome.storage.session.get('assetList')`.
+  - [x] Render a responsive CSS grid (3–5 columns; adjusts with viewport).
+  - [x] Lazy-load thumbnails; videos muted, `preload="metadata"`, `playsinline`.
+  - [x] Each tile opens the original asset URL in a new tab.
 - [ ] Handle empty/error states and large lists (consider virtualization or chunked rendering).
       Acceptance:
-- [ ] New tab opens showing all assets in a grid on test pages.
-- [ ] Clicking a tile opens the original asset in a new browser tab.
+- [x] New tab opens showing all assets in a grid on test pages.
+- [x] Clicking a tile opens the original asset in a new browser tab.
 - [ ] Grid renders quickly (< ~1s initial view) and scrolls smoothly.
 
 ---

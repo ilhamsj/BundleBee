@@ -1,4 +1,41 @@
+const statusEl = document.getElementById("status");
+const openAllBtn = document.getElementById("openAll");
+
+async function stashAssets(assets) {
+  try {
+    if (chrome.storage?.session?.set) {
+      await chrome.storage.session.set({ assetList: assets });
+      return "session";
+    }
+  } catch (e) {
+    console.warn("Session storage failed, falling back to local.", e);
+  }
+  try {
+    await chrome.storage.local.set({
+      assetList: assets,
+      assetListTS: Date.now(),
+    });
+    return "local";
+  } catch (e) {
+    console.error("Failed to stash assets to local storage.", e);
+    throw e;
+  }
+}
+
+openAllBtn.addEventListener("click", async () => {
+  try {
+    await chrome.tabs.create({ url: chrome.runtime.getURL("gallery.html") });
+  } catch (e) {
+    console.error(e);
+  }
+});
+
 document.getElementById("getAssets").addEventListener("click", async () => {
+  statusEl.textContent = "Loading assets...";
+  openAllBtn.style.display = "none";
+  const resultsDiv = document.getElementById("results");
+  resultsDiv.innerHTML = "";
+
   let [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
 
   chrome.scripting.executeScript(
@@ -6,54 +43,83 @@ document.getElementById("getAssets").addEventListener("click", async () => {
       target: { tabId: tab.id },
       func: getAssetsFromPage,
     },
-    (injectionResults) => {
-      const resultsDiv = document.getElementById("results");
-      resultsDiv.innerHTML = "";
-
-      if (injectionResults && injectionResults[0].result) {
-        const assets = injectionResults[0].result;
-        assets.forEach((asset) => {
-          const { url, type } = asset;
-          const container = document.createElement("div");
-          container.className = "asset";
-
-          // preview
-          let preview;
-          if (type === "video") {
-            preview = document.createElement("video");
-            preview.src = url;
-            preview.controls = true;
-            preview.autoplay = false;
-            preview.preload = "metadata";
-            preview.muted = true;
-            preview.playsInline = true;
-            preview.style.maxWidth = "100%";
-            preview.style.maxHeight = "150px";
-          } else if (type === "image" || type === "background") {
-            preview = document.createElement("img");
-            preview.src = url;
-            preview.loading = "lazy";
-            preview.style.maxWidth = "100%";
-            preview.style.maxHeight = "150px";
-          }
-
-          // clickable link
-          const link = document.createElement("a");
-          link.href = url;
-          link.textContent = url;
-          link.target = "_blank";
-
-          container.appendChild(
-            preview || document.createTextNode("(no preview)")
-          );
-          container.appendChild(document.createElement("br"));
-          container.appendChild(link);
-          resultsDiv.appendChild(container);
-        });
+    async (injectionResults) => {
+      if (chrome.runtime.lastError) {
+        statusEl.textContent = "Error: " + chrome.runtime.lastError.message;
+        return;
       }
+
+      if (!injectionResults || !injectionResults[0]) {
+        statusEl.textContent = "No results returned.";
+        return;
+      }
+
+      const assets = injectionResults[0].result || [];
+
+      if (!Array.isArray(assets) || assets.length === 0) {
+        statusEl.textContent = "No assets found on this page.";
+        return;
+      }
+
+      try {
+        const mode = await stashAssets(assets);
+        console.log("Stashed assetList to", mode);
+      } catch (e) {
+        // Already logged; show user-friendly status
+        statusEl.textContent = "Assets found but failed to prepare gallery.";
+      }
+
+      statusEl.textContent = `Found ${assets.length} assets.`;
+      openAllBtn.style.display = "inline-block";
+
+      assets.forEach((asset) => {
+        const { url, type } = asset;
+        const container = document.createElement("div");
+        container.className = "asset";
+
+        // preview
+        let preview;
+        if (type === "video") {
+          preview = document.createElement("video");
+          preview.src = url;
+          preview.controls = true;
+          preview.autoplay = false;
+          preview.preload = "metadata";
+          preview.muted = true;
+          preview.playsInline = true;
+          preview.style.maxWidth = "100%";
+          preview.style.maxHeight = "150px";
+        } else if (type === "image" || type === "background") {
+          preview = document.createElement("img");
+          preview.src = url;
+          preview.loading = "lazy";
+          preview.style.maxWidth = "100%";
+          preview.style.maxHeight = "150px";
+        }
+
+        // clickable link (truncated)
+        const link = document.createElement("a");
+        link.href = url;
+        link.textContent = truncateUrl(url, 60);
+        link.title = url;
+        link.target = "_blank";
+
+        container.appendChild(
+          preview || document.createTextNode("(no preview)")
+        );
+        container.appendChild(document.createElement("br"));
+        container.appendChild(link);
+        resultsDiv.appendChild(container);
+      });
     }
   );
 });
+
+function truncateUrl(url, max) {
+  if (url.length <= max) return url;
+  const half = Math.floor((max - 3) / 2);
+  return url.slice(0, half) + "..." + url.slice(-half);
+}
 
 function getAssetsFromPage() {
   function isHttpUrl(candidate) {

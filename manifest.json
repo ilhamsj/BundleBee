@@ -5,7 +5,8 @@
   "description": "Extract all image and video URLs from the current page.",
   "permissions": [
     "activeTab",
-    "scripting"
+    "scripting",
+    "storage"
   ],
   "action": {
     "default_popup": "popup.html",

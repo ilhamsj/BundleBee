@@ -1,0 +1,18 @@
+{
+  "manifest_version": 3,
+  "name": "Jade Asset URL Extractor",
+  "version": "1.0",
+  "description": "Extract all image and video URLs from the current page.",
+  "permissions": [
+    "activeTab",
+    "scripting"
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icon.jpg",
+      "48": "icon.jpg",
+      "128": "icon.jpg"
+    }
+  }
+}

@@ -294,22 +294,44 @@ chrome.downloads.onChanged.addListener((delta) => {
     .getElementById("downloadSelected")
     .addEventListener("click", downloadSelected);
   document.getElementById("selectAll").addEventListener("change", (e) => {
+    // Avoid re-rendering to preserve media playback; just toggle checkboxes in place
     state.selected.clear();
-    if (e.target.checked)
-      state.assets.forEach((a) => state.selected.add(getUrlKey(a)));
-    renderGrid();
+    const shouldSelect = !!e.target.checked;
+    const tiles = document.querySelectorAll(".tile");
+    tiles.forEach((tile) => {
+      const link = tile.querySelector("a");
+      const cb = tile.querySelector('input[type="checkbox"]');
+      if (!link || !cb) return;
+      const key = link.href;
+      if (shouldSelect) {
+        state.selected.add(key);
+        cb.checked = true;
+      } else {
+        state.selected.delete(key);
+        cb.checked = false;
+      }
+    });
     updateProgressSummary();
   });
-  [
-    "filterType",
-    "minWidth",
-    "minHeight",
-    "minSizeKB",
-    "sortBy",
-    "sortDir",
-  ].forEach((id) => {
+  ["filterType", "minSizeKB", "sortBy", "sortDir"].forEach((id) => {
     const el = document.getElementById(id);
     if (el) el.addEventListener("change", () => renderGrid());
+  });
+  // Sliders with live labels
+  [
+    { id: "minWidth", labelId: "minWidthValue" },
+    { id: "minHeight", labelId: "minHeightValue" },
+  ].forEach(({ id, labelId }) => {
+    const el = document.getElementById(id);
+    const label = document.getElementById(labelId);
+    if (!el) return;
+    const update = () => {
+      if (label) label.textContent = String(el.value);
+      renderGrid();
+    };
+    el.addEventListener("input", update);
+    el.addEventListener("change", update);
+    update();
   });
   loadAssets();
 })();

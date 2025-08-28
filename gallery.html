@@ -80,23 +80,45 @@
       </label>
       <label style="display: flex; flex-direction: column; gap: 2px">
         Min Width
-        <input
-          id="minWidth"
-          type="number"
-          min="0"
-          placeholder="0"
-          style="font-size: 12px; padding: 4px"
-        />
+        <div
+          style="
+            display: grid;
+            grid-template-columns: 1fr auto;
+            gap: 6px;
+            align-items: center;
+          "
+        >
+          <input
+            id="minWidth"
+            type="range"
+            min="0"
+            max="4000"
+            step="10"
+            value="0"
+          />
+          <span id="minWidthValue">0</span>
+        </div>
       </label>
       <label style="display: flex; flex-direction: column; gap: 2px">
         Min Height
-        <input
-          id="minHeight"
-          type="number"
-          min="0"
-          placeholder="0"
-          style="font-size: 12px; padding: 4px"
-        />
+        <div
+          style="
+            display: grid;
+            grid-template-columns: 1fr auto;
+            gap: 6px;
+            align-items: center;
+          "
+        >
+          <input
+            id="minHeight"
+            type="range"
+            min="0"
+            max="4000"
+            step="10"
+            value="0"
+          />
+          <span id="minHeightValue">0</span>
+        </div>
       </label>
       <label style="display: flex; flex-direction: column; gap: 2px">
         Min Size (KB)

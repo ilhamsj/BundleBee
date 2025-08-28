@@ -1,5 +1,6 @@
 const statusEl = document.getElementById("status");
 const openAllBtn = document.getElementById("openAll");
+const filterControls = initFilterControls();
 
 async function stashAssets(assets) {
   try {
@@ -54,7 +55,7 @@ document.getElementById("getAssets").addEventListener("click", async () => {
         return;
       }
 
-      const assets = injectionResults[0].result || [];
+      const assets = await enrichAssets(injectionResults[0].result || []);
 
       if (!Array.isArray(assets) || assets.length === 0) {
         statusEl.textContent = "No assets found on this page.";
@@ -72,45 +73,7 @@ document.getElementById("getAssets").addEventListener("click", async () => {
       statusEl.textContent = `Found ${assets.length} assets.`;
       openAllBtn.style.display = "inline-block";
 
-      assets.forEach((asset) => {
-        const { url, type } = asset;
-        const container = document.createElement("div");
-        container.className = "asset";
-
-        // preview
-        let preview;
-        if (type === "video") {
-          preview = document.createElement("video");
-          preview.src = url;
-          preview.controls = true;
-          preview.autoplay = false;
-          preview.preload = "metadata";
-          preview.muted = true;
-          preview.playsInline = true;
-          preview.style.maxWidth = "100%";
-          preview.style.maxHeight = "150px";
-        } else if (type === "image" || type === "background") {
-          preview = document.createElement("img");
-          preview.src = url;
-          preview.loading = "lazy";
-          preview.style.maxWidth = "100%";
-          preview.style.maxHeight = "150px";
-        }
-
-        // clickable link (truncated)
-        const link = document.createElement("a");
-        link.href = url;
-        link.textContent = truncateUrl(url, 60);
-        link.title = url;
-        link.target = "_blank";
-
-        container.appendChild(
-          preview || document.createTextNode("(no preview)")
-        );
-        container.appendChild(document.createElement("br"));
-        container.appendChild(link);
-        resultsDiv.appendChild(container);
-      });
+      renderList(assets);
     }
   );
 });
@@ -341,3 +304,202 @@ function getAssetsFromPage() {
 
 // Example usage
 console.log("Collected assets:", getAssetsFromPage());
+
+// ===== Phase 5: Filtering, Sorting, Enrichment =====
+function initFilterControls() {
+  const els = {
+    type: document.getElementById("filterType"),
+    minW: document.getElementById("minWidth"),
+    minH: document.getElementById("minHeight"),
+    minKB: document.getElementById("minSizeKB"),
+    sortBy: document.getElementById("sortBy"),
+    sortDir: document.getElementById("sortDir"),
+  };
+  return els;
+}
+
+function applyFiltersAndSorting(assets) {
+  const type = filterControls.type?.value || "all";
+  const minW = parseInt(filterControls.minW?.value || "0", 10) || 0;
+  const minH = parseInt(filterControls.minH?.value || "0", 10) || 0;
+  const minBytes =
+    (parseInt(filterControls.minKB?.value || "0", 10) || 0) * 1024;
+  const sortBy = filterControls.sortBy?.value || "none";
+  const dir = (filterControls.sortDir?.value || "asc") === "asc" ? 1 : -1;
+
+  let filtered = assets.filter((a) => {
+    if (type !== "all" && a.type !== type) return false;
+    if (minW && (typeof a.width !== "number" || a.width < minW)) return false;
+    if (minH && (typeof a.height !== "number" || a.height < minH)) return false;
+    if (minBytes && (typeof a.sizeBytes !== "number" || a.sizeBytes < minBytes))
+      return false;
+    return true;
+  });
+
+  if (sortBy !== "none") {
+    filtered.sort((a, b) => {
+      const get = (key) => {
+        if (key === "filename") return a.filename || "";
+        if (key === "url") return a.url || "";
+        if (key === "type") return a.type || "";
+        if (key === "width")
+          return typeof a.width === "number" ? a.width : -Infinity;
+        if (key === "height")
+          return typeof a.height === "number" ? a.height : -Infinity;
+        if (key === "size")
+          return typeof a.sizeBytes === "number" ? a.sizeBytes : -Infinity;
+        return 0;
+      };
+      const getB = (key) => {
+        if (key === "filename") return b.filename || "";
+        if (key === "url") return b.url || "";
+        if (key === "type") return b.type || "";
+        if (key === "width")
+          return typeof b.width === "number" ? b.width : -Infinity;
+        if (key === "height")
+          return typeof b.height === "number" ? b.height : -Infinity;
+        if (key === "size")
+          return typeof b.sizeBytes === "number" ? b.sizeBytes : -Infinity;
+        return 0;
+      };
+      const av = get(sortBy);
+      const bv = getB(sortBy);
+      if (av < bv) return -1 * dir;
+      if (av > bv) return 1 * dir;
+      return 0;
+    });
+  }
+
+  return filtered;
+}
+
+function renderList(assets) {
+  const resultsDiv = document.getElementById("results");
+  resultsDiv.innerHTML = "";
+
+  const render = () => {
+    const view = applyFiltersAndSorting(assets);
+    resultsDiv.innerHTML = "";
+    view.forEach((asset) => {
+      const { url, type, width, height, sizeBytes } = asset;
+      const container = document.createElement("div");
+      container.className = "asset";
+
+      let preview;
+      if (type === "video") {
+        preview = document.createElement("video");
+        preview.src = url;
+        preview.controls = true;
+        preview.autoplay = false;
+        preview.preload = "metadata";
+        preview.muted = true;
+        preview.playsInline = true;
+        preview.style.maxWidth = "100%";
+        preview.style.maxHeight = "150px";
+      } else {
+        preview = document.createElement("img");
+        preview.src = url;
+        preview.loading = "lazy";
+        preview.style.maxWidth = "100%";
+        preview.style.maxHeight = "150px";
+      }
+
+      const link = document.createElement("a");
+      link.href = url;
+      link.textContent = truncateUrl(url, 60);
+      link.title = url;
+      link.target = "_blank";
+
+      const meta = document.createElement("div");
+      meta.style.fontSize = "11px";
+      meta.style.color = "#666";
+      const parts = [];
+      if (typeof width === "number" && typeof height === "number")
+        parts.push(`${width}x${height}`);
+      if (typeof sizeBytes === "number")
+        parts.push(`${Math.round(sizeBytes / 1024)} KB`);
+      meta.textContent = parts.join(" • ");
+
+      container.appendChild(preview || document.createTextNode("(no preview)"));
+      container.appendChild(document.createElement("br"));
+      container.appendChild(link);
+      if (parts.length) container.appendChild(meta);
+      resultsDiv.appendChild(container);
+    });
+  };
+
+  [
+    filterControls.type,
+    filterControls.minW,
+    filterControls.minH,
+    filterControls.minKB,
+    filterControls.sortBy,
+    filterControls.sortDir,
+  ].forEach((el) => el && el.addEventListener("change", render));
+
+  render();
+}
+
+async function enrichAssets(assets) {
+  // Best-effort add width/height for images and size via HEAD where allowed
+  const concurrency = 5;
+  let idx = 0;
+  const out = assets.map((a) => ({ ...a }));
+
+  async function probe(asset, i) {
+    try {
+      if (asset.type === "image" || asset.type === "background") {
+        const dims = await probeImageDimensions(asset.url);
+        if (dims) Object.assign(out[i], dims);
+      }
+      if (asset.type === "video") {
+        // Skipping video dimension probing to avoid heavy loads; could add metadata probing later
+      }
+      const size = await headContentLength(asset.url);
+      if (typeof size === "number") out[i].sizeBytes = size;
+    } catch (_) {}
+  }
+
+  async function worker() {
+    while (idx < out.length) {
+      const i = idx++;
+      await probe(out[i], i);
+    }
+  }
+
+  await Promise.all(
+    Array.from({ length: Math.min(concurrency, out.length) }, () => worker())
+  );
+  return out;
+}
+
+function probeImageDimensions(url) {
+  return new Promise((resolve) => {
+    try {
+      const img = new Image();
+      img.onload = function () {
+        resolve({ width: img.naturalWidth, height: img.naturalHeight });
+      };
+      img.onerror = function () {
+        resolve(null);
+      };
+      img.src = url;
+    } catch (_) {
+      resolve(null);
+    }
+  });
+}
+
+async function headContentLength(url) {
+  try {
+    const res = await fetch(url, { method: "HEAD", mode: "no-cors" });
+    // In no-cors, headers may be opaque; fall back to GET request with range?
+    const len =
+      res.headers && res.headers.get ? res.headers.get("content-length") : null;
+    if (len != null) {
+      const n = Number(len);
+      if (!Number.isNaN(n)) return n;
+    }
+  } catch (_) {}
+  return undefined;
+}

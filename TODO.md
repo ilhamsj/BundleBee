@@ -116,11 +116,11 @@ Notes: Allow selecting multiple assets and downloading via Chrome Downloads API;
 
 Notes: Help users focus by narrowing the list.
 
-- [ ] Filter by type: image, video, background, all.
-- [ ] Filter by dimensions (min width/height); compute where possible.
-- [ ] Filter by file size (best-effort via HEAD requests; respect CORS).
-- [ ] Sort by filename, URL, dimensions, or type.
-- [ ] Persist filter state in popup (in-memory is fine; no storage required).
+- [x] Filter by type: image, video, background, all.
+- [x] Filter by dimensions (min width/height); compute where possible.
+- [x] Filter by file size (best-effort via HEAD requests; respect CORS).
+- [x] Sort by filename, URL, dimensions, or type.
+- [x] Persist filter state in popup (in-memory is fine; no storage required).
       Acceptance:
 - [ ] Filters change the visible list as expected.
 - [ ] Sorting applies without performance regressions (>95% responsiveness preserved).

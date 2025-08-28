@@ -41,6 +41,75 @@
     <h2>Assets Gallery</h2>
     <div id="status">Loading...</div>
     <div
+      id="filters"
+      style="
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 8px;
+        margin-bottom: 12px;
+        font-size: 12px;
+      "
+    >
+      <label style="display: flex; flex-direction: column; gap: 2px">
+        Type
+        <select id="filterType" style="font-size: 12px; padding: 4px">
+          <option value="all">All</option>
+          <option value="image">Image</option>
+          <option value="video">Video</option>
+          <option value="background">Background</option>
+        </select>
+      </label>
+      <label style="display: flex; flex-direction: column; gap: 2px">
+        Sort By
+        <select id="sortBy" style="font-size: 12px; padding: 4px">
+          <option value="none">None</option>
+          <option value="filename">Filename</option>
+          <option value="url">URL</option>
+          <option value="width">Width</option>
+          <option value="height">Height</option>
+          <option value="size">File Size</option>
+          <option value="type">Type</option>
+        </select>
+      </label>
+      <label style="display: flex; flex-direction: column; gap: 2px">
+        Order
+        <select id="sortDir" style="font-size: 12px; padding: 4px">
+          <option value="asc">Asc</option>
+          <option value="desc">Desc</option>
+        </select>
+      </label>
+      <label style="display: flex; flex-direction: column; gap: 2px">
+        Min Width
+        <input
+          id="minWidth"
+          type="number"
+          min="0"
+          placeholder="0"
+          style="font-size: 12px; padding: 4px"
+        />
+      </label>
+      <label style="display: flex; flex-direction: column; gap: 2px">
+        Min Height
+        <input
+          id="minHeight"
+          type="number"
+          min="0"
+          placeholder="0"
+          style="font-size: 12px; padding: 4px"
+        />
+      </label>
+      <label style="display: flex; flex-direction: column; gap: 2px">
+        Min Size (KB)
+        <input
+          id="minSizeKB"
+          type="number"
+          min="0"
+          placeholder="0"
+          style="font-size: 12px; padding: 4px"
+        />
+      </label>
+    </div>
+    <div
       id="controls"
       style="margin-bottom: 12px; display: flex; gap: 12px; align-items: center"
     >

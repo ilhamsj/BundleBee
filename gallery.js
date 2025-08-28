@@ -44,6 +44,12 @@ function updateProgressSummary() {
   } else {
     el.textContent = `Selected: ${total} • In progress: ${active} • Done: ${done} • Failed: ${failed}`;
   }
+  // Disable download buttons when nothing is selected
+  const selBtn = document.getElementById("downloadSelected");
+  const zipBtn = document.getElementById("downloadZip");
+  const disable = state.selected.size === 0;
+  if (selBtn) selBtn.disabled = disable;
+  if (zipBtn) zipBtn.disabled = disable;
 }
 
 function getUrlKey(asset) {
@@ -110,6 +116,12 @@ function renderGrid() {
       statusEl.textContent = `Showing ${view.length} of ${state.assets.length} assets`;
     }
   }
+  // Hide or show download buttons depending on whether there are entries
+  const hasEntries = view.length > 0;
+  const selBtn = document.getElementById("downloadSelected");
+  const zipBtn = document.getElementById("downloadZip");
+  if (selBtn) selBtn.style.display = hasEntries ? "inline-block" : "none";
+  if (zipBtn) zipBtn.style.display = hasEntries ? "inline-block" : "none";
   view.forEach((asset, index) => {
     const { url, type } = asset;
     const tile = document.createElement("div");
@@ -155,6 +167,22 @@ function renderGrid() {
     link.textContent = truncateUrl(url, 60);
     link.title = url;
 
+    // Meta details similar to popup: dimensions, size, type
+    const meta = document.createElement("div");
+    meta.style.fontSize = "12px";
+    meta.style.color = "#666";
+    const parts = [];
+    if (typeof asset.width === "number" && typeof asset.height === "number") {
+      parts.push(`${asset.width}x${asset.height}`);
+    }
+    if (typeof asset.sizeBytes === "number") {
+      parts.push(`${Math.round(asset.sizeBytes / 1024)} KB`);
+    }
+    if (asset.type) {
+      parts.push(String(asset.type));
+    }
+    if (parts.length) meta.textContent = parts.join(" • ");
+
     const status = document.createElement("div");
     status.style.fontSize = "12px";
     status.style.color = "#666";
@@ -166,6 +194,7 @@ function renderGrid() {
     tile.appendChild(checkbox);
     tile.appendChild(media);
     tile.appendChild(link);
+    if (parts.length) tile.appendChild(meta);
     tile.appendChild(status);
     frag.appendChild(tile);
   });
@@ -668,6 +697,28 @@ chrome.downloads.onChanged.addListener((delta) => {
     el.addEventListener("change", update);
     update();
   });
+  const resetBtn = document.getElementById("resetFilters");
+  if (resetBtn) {
+    resetBtn.addEventListener("click", () => {
+      const type = document.getElementById("filterType");
+      const sortBy = document.getElementById("sortBy");
+      const sortDir = document.getElementById("sortDir");
+      const minW = document.getElementById("minWidth");
+      const minH = document.getElementById("minHeight");
+      const minKB = document.getElementById("minSizeKB");
+      if (type) type.value = "all";
+      if (sortBy) sortBy.value = "none";
+      if (sortDir) sortDir.value = "asc";
+      if (minW) minW.value = 0;
+      if (minH) minH.value = 0;
+      if (minKB) minKB.value = "";
+      const minWidthValue = document.getElementById("minWidthValue");
+      const minHeightValue = document.getElementById("minHeightValue");
+      if (minWidthValue) minWidthValue.textContent = "0";
+      if (minHeightValue) minHeightValue.textContent = "0";
+      renderGrid();
+    });
+  }
   loadAssets();
 })();
 

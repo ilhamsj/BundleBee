@@ -43,14 +43,22 @@
     <div
       id="filters"
       style="
-        display: grid;
-        grid-template-columns: repeat(3, 1fr);
-        gap: 8px;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px 12px;
+        align-items: center;
         margin-bottom: 12px;
         font-size: 12px;
       "
     >
-      <label style="display: flex; flex-direction: column; gap: 2px">
+      <label
+        style="
+          display: flex;
+          flex-direction: column;
+          gap: 2px;
+          min-width: 160px;
+        "
+      >
         Type
         <select id="filterType" style="font-size: 12px; padding: 4px">
           <option value="all">All</option>
@@ -59,7 +67,14 @@
           <option value="background">Background</option>
         </select>
       </label>
-      <label style="display: flex; flex-direction: column; gap: 2px">
+      <label
+        style="
+          display: flex;
+          flex-direction: column;
+          gap: 2px;
+          min-width: 160px;
+        "
+      >
         Sort By
         <select id="sortBy" style="font-size: 12px; padding: 4px">
           <option value="none">None</option>
@@ -71,14 +86,29 @@
           <option value="type">Type</option>
         </select>
       </label>
-      <label style="display: flex; flex-direction: column; gap: 2px">
+      <label
+        style="
+          display: flex;
+          flex-direction: column;
+          gap: 2px;
+          min-width: 120px;
+        "
+      >
         Order
         <select id="sortDir" style="font-size: 12px; padding: 4px">
           <option value="asc">Asc</option>
           <option value="desc">Desc</option>
         </select>
       </label>
-      <label style="display: flex; flex-direction: column; gap: 2px">
+      <label
+        style="
+          display: flex;
+          flex-direction: column;
+          gap: 2px;
+          flex: 1 1 240px;
+          min-width: 220px;
+        "
+      >
         Min Width
         <div
           style="
@@ -99,7 +129,15 @@
           <span id="minWidthValue">0</span>
         </div>
       </label>
-      <label style="display: flex; flex-direction: column; gap: 2px">
+      <label
+        style="
+          display: flex;
+          flex-direction: column;
+          gap: 2px;
+          flex: 1 1 240px;
+          min-width: 220px;
+        "
+      >
         Min Height
         <div
           style="
@@ -120,7 +158,14 @@
           <span id="minHeightValue">0</span>
         </div>
       </label>
-      <label style="display: flex; flex-direction: column; gap: 2px">
+      <label
+        style="
+          display: flex;
+          flex-direction: column;
+          gap: 2px;
+          min-width: 140px;
+        "
+      >
         Min Size (KB)
         <input
           id="minSizeKB"
@@ -130,6 +175,12 @@
           style="font-size: 12px; padding: 4px"
         />
       </label>
+      <button
+        id="resetFilters"
+        style="font-size: 12px; padding: 6px 10px; height: fit-content"
+      >
+        Reset
+      </button>
     </div>
     <div
       id="controls"

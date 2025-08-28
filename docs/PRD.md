@@ -36,22 +36,14 @@ A Chrome extension that allows users to **extract, preview, filter, view, and do
 2. **Preview Assets in Popup**
 
    - Display thumbnails for images.
-   - Display playable video previews.
+   - Display playable video previews (no autoplay).
    - Show fallback text if preview unavailable.
 
-3. **Open in Viewer Tab**
+3. **Gallery (Primary Inspection Surface)**
 
-   - Clicking an asset opens a **new extension tab (`viewer.html`)**.
-   - The viewer tab includes:
-
-     - Asset rendered inside a styled container.
-     - Metadata (URL, type, dimensions if possible).
-     - Direct link to original asset (open in browser tab).
-
-4. **Open All in New Tab (Gallery)**
-
-   - From the popup, user can open a gallery tab (`gallery.html`) showing all extracted assets in a responsive grid.
-   - Each item is clickable to open the single-asset viewer (`viewer.html`).
+   - From the popup, user opens a gallery tab (`gallery.html`) showing all extracted assets in a responsive grid.
+   - Clicking a tile opens the original asset URL in a new browser tab.
+   - Optional: a lightweight inline “Details” overlay in the gallery shows metadata (URL, type, dimensions) without leaving the page.
    - Handles large lists efficiently (lazy loading/chunked rendering).
 
 ---
@@ -97,7 +89,7 @@ A Chrome extension that allows users to **extract, preview, filter, view, and do
 5. User actions:
 
    - **Click “Open All in New Tab”** → opens gallery tab with grid of all collected assets.
-   - **Click “Open in Viewer”** → opens new extension tab with full preview + metadata.
+   - In gallery: clicking a tile opens the original asset in a new tab; optional "Details" overlay shows metadata inline.
    - **Select some assets** → click “Download Selected” → gets ZIP or individual downloads.
    - **Apply filters** → e.g., only images > 500px wide.
    - **Export asset list** → CSV/JSON.
@@ -115,8 +107,7 @@ A Chrome extension that allows users to **extract, preview, filter, view, and do
   - `storage` (optional; ephemeral handoff via `chrome.storage.session`)
 
 - Popup UI: HTML/CSS/JS
-- Viewer UI: `viewer.html` + `viewer.js` (for rendering + metadata)
-- Gallery UI: `gallery.html` + `gallery.js` (responsive grid showing all assets)
+- Gallery UI: `gallery.html` + `gallery.js` (responsive grid showing all assets; optional inline details overlay)
 - ZIP generation: [JSZip](https://stuk.github.io/jszip/)
 - Storage: none (no user data). May use `chrome.storage.session` for in-memory handoff.
 
@@ -148,14 +139,12 @@ A Chrome extension that allows users to **extract, preview, filter, view, and do
   - :check Deduplicate URLs (normalize to absolute; consider stripping hashes)
 - Preview in Popup
   - :check Image thumbnails (lazy-loaded)
-  - :check Video previews (muted/controls; autoplay depends on user gesture/policy)
+  - :check Video previews (muted/controls; autoplay disabled)
   - :check Fallback text for unsupported previews
-- Open in Viewer Tab
-  - :check `viewer.html` with styled container and metadata (image `naturalWidth/Height`, video `videoWidth/Height`)
-  - :check Direct link to original asset (opens in new tab)
-- Open All in New Tab (Gallery)
+- Gallery (Primary)
   - :check `gallery.html` responsive grid; recommend virtualization for 300+ items
   - :check Handoff via `chrome.storage.session` (ephemeral; MV3)
+  - :check Tiles open original in new tab; optional inline details overlay
 - Multi-Select & Download
   - :check One-by-one via `chrome.downloads.download` (public URLs; auth-protected may fail)
   - :check ZIP via JSZip (requires fetching blobs; needs `host_permissions`; large memory usage risk)
@@ -166,26 +155,5 @@ A Chrome extension that allows users to **extract, preview, filter, view, and do
 - Export
   - :check CSV and JSON of URLs + metadata
 - Sorting
-
   - :check By filename/URL/type
   - :check By dimensions (after measurement; may be missing for some assets)
-
-- Technical Requirements
-
-  - :check MV3 manifest and base permissions (`activeTab`, `scripting`, `downloads`)
-  - :check Optional `storage` for `chrome.storage.session`
-  - :check Popup/Viewer/Gallery HTML/CSS/JS
-  - :check ZIP via JSZip (mind CORS/host permissions and memory)
-
-- Success Metrics
-
-  - :check Functional >95% extraction (backgrounds/lazy assets may reduce; acceptable for MVP)
-  - :check Usability within ~3 clicks (popup → gallery/viewer → action)
-  - :check Performance <1s typical pages (heavy pages may exceed; optimize and lazy-load)
-
-- Future Considerations
-  - :check Audio assets support
-  - :check Lazy-loaded assets via `MutationObserver`
-  - :check Dark mode UI
-  - :check Gallery next/previous navigation
-  - :check Firefox via WebExtensions (minor API differences; MV3 support improving)

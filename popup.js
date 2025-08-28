@@ -11,31 +11,37 @@ document.getElementById("getAssets").addEventListener("click", async () => {
       resultsDiv.innerHTML = "";
 
       if (injectionResults && injectionResults[0].result) {
-        let assets = injectionResults[0].result;
-        assets.forEach((url) => {
-          let container = document.createElement("div");
+        const assets = injectionResults[0].result;
+        assets.forEach((asset) => {
+          const { url, type } = asset;
+          const container = document.createElement("div");
           container.className = "asset";
-
-          // clickable link
-          let link = document.createElement("a");
-          link.href = url;
-          link.textContent = url;
-          link.target = "_blank"; // open in new tab
 
           // preview
           let preview;
-          if (url.match(/\.(mp4|webm|ogg)$/i)) {
+          if (type === "video") {
             preview = document.createElement("video");
             preview.src = url;
             preview.controls = true;
+            preview.autoplay = false;
+            preview.preload = "metadata";
+            preview.muted = true;
+            preview.playsInline = true;
             preview.style.maxWidth = "100%";
             preview.style.maxHeight = "150px";
-          } else if (url.match(/\.(jpg|jpeg|png|gif|svg|webp)$/i)) {
+          } else if (type === "image" || type === "background") {
             preview = document.createElement("img");
             preview.src = url;
+            preview.loading = "lazy";
             preview.style.maxWidth = "100%";
             preview.style.maxHeight = "150px";
           }
+
+          // clickable link
+          const link = document.createElement("a");
+          link.href = url;
+          link.textContent = url;
+          link.target = "_blank";
 
           container.appendChild(
             preview || document.createTextNode("(no preview)")
@@ -50,46 +56,185 @@ document.getElementById("getAssets").addEventListener("click", async () => {
 });
 
 function getAssetsFromPage() {
-  // 1. Grab all <img> sources
-  const images = [...document.querySelectorAll("img")].map((img) => img.src);
+  function isHttpUrl(candidate) {
+    return /^https?:\/\//i.test(candidate);
+  }
 
-  // 2. Grab all <video> sources
-  const videos = [...document.querySelectorAll("video")].flatMap((video) => {
-    const srcs = [];
-    if (video.src) srcs.push(video.src);
-    video.querySelectorAll("source").forEach((s) => s.src && srcs.push(s.src));
-    return srcs;
-  });
+  function toAbsoluteUrl(rawUrl) {
+    try {
+      const abs = new URL(rawUrl, document.baseURI).href;
+      return abs;
+    } catch (e) {
+      return null;
+    }
+  }
 
-  // 3. Grab background images from inline styles and computed styles
-  const bgImages = [...document.querySelectorAll("*")].flatMap((el) => {
-    const styles = getComputedStyle(el).backgroundImage;
+  function parseSrcset(srcset) {
+    if (!srcset) return [];
+    return srcset
+      .split(",")
+      .map((part) => part.trim())
+      .map((candidate) => {
+        const [url] = candidate.split(/\s+/);
+        return url;
+      })
+      .filter(Boolean);
+  }
 
-    if (!styles || styles === "none") return [];
+  function guessTypeFromUrl(url) {
+    const lower = url.split("?")[0].toLowerCase();
+    if (/(\.mp4|\.webm|\.ogg)$/.test(lower)) return "video";
+    if (/(\.jpg|\.jpeg|\.png|\.gif|\.svg|\.webp|\.avif)$/.test(lower))
+      return "image";
+    return "image"; // default to image for backgrounds/others
+  }
 
-    // handle simple url("...") or url('...') or url(...)
+  function deriveFilenameFromUrl(url) {
+    try {
+      const u = new URL(url);
+      const pathname = u.pathname || "/";
+      const last = pathname.split("/").filter(Boolean).pop() || u.hostname;
+      return decodeURIComponent(last);
+    } catch (e) {
+      return url;
+    }
+  }
+
+  function collectImages() {
+    const results = [];
+    const imgElements = [...document.querySelectorAll("img")];
+    imgElements.forEach((img) => {
+      const srcCandidates = [];
+      if (img.src) srcCandidates.push(img.src);
+      srcCandidates.push(...parseSrcset(img.srcset));
+      srcCandidates.forEach((raw) => {
+        const abs = toAbsoluteUrl(raw);
+        if (!abs) return;
+        if (!isHttpUrl(abs)) return;
+        results.push({
+          url: abs,
+          type: "image",
+          tag: "IMG",
+          filename: deriveFilenameFromUrl(abs),
+        });
+      });
+    });
+
+    // <picture> sources
+    const pictureSources = [...document.querySelectorAll("picture source")];
+    pictureSources.forEach((source) => {
+      const srcCandidates = [];
+      if (source.src) srcCandidates.push(source.src);
+      srcCandidates.push(...parseSrcset(source.srcset));
+      srcCandidates.forEach((raw) => {
+        const abs = toAbsoluteUrl(raw);
+        if (!abs) return;
+        if (!isHttpUrl(abs)) return;
+        results.push({
+          url: abs,
+          type: "image",
+          tag: "SOURCE",
+          filename: deriveFilenameFromUrl(abs),
+        });
+      });
+    });
+
+    return results;
+  }
+
+  function collectVideos() {
+    const results = [];
+    const videoElements = [...document.querySelectorAll("video")];
+    videoElements.forEach((video) => {
+      if (video.src) {
+        const abs = toAbsoluteUrl(video.src);
+        if (abs && isHttpUrl(abs))
+          results.push({
+            url: abs,
+            type: "video",
+            tag: "VIDEO",
+            filename: deriveFilenameFromUrl(abs),
+          });
+      }
+      video.querySelectorAll("source").forEach((s) => {
+        if (!s.src) return;
+        const abs = toAbsoluteUrl(s.src);
+        if (abs && isHttpUrl(abs))
+          results.push({
+            url: abs,
+            type: "video",
+            tag: "SOURCE",
+            filename: deriveFilenameFromUrl(abs),
+          });
+      });
+    });
+    return results;
+  }
+
+  function collectBackgroundImages() {
+    const results = [];
+    const all = [...document.querySelectorAll("*")];
     const urlRegex = /url\(["']?(.*?)["']?\)/g;
-    const urls = [];
-    let match;
-    while ((match = urlRegex.exec(styles)) !== null) {
-      urls.push(match[1]);
-    }
-
-    // handle image-set(...) inside background-image
     const imageSetRegex = /image-set\((.*?)\)/g;
-    while ((match = imageSetRegex.exec(styles)) !== null) {
-      const set = match[1]
-        .split(",")
-        .map((item) => item.trim().split(" ")[0].replace(/["']/g, ""));
-      urls.push(...set);
-    }
 
-    return urls;
-  });
+    all.forEach((el) => {
+      const bg = getComputedStyle(el).backgroundImage;
+      if (!bg || bg === "none") return;
 
-  // 4. Remove duplicates
-  return [...new Set([...images, ...videos, ...bgImages])];
+      const urls = [];
+      let match;
+
+      // url(...) patterns
+      while ((match = urlRegex.exec(bg)) !== null) {
+        if (match[1]) urls.push(match[1]);
+      }
+
+      // image-set(...) patterns
+      let isMatch;
+      while ((isMatch = imageSetRegex.exec(bg)) !== null) {
+        const inside = isMatch[1];
+        const parts = inside.split(",");
+        parts.forEach((item) => {
+          const first = item.trim().split(" ")[0].replace(/["']/g, "");
+          if (first) urls.push(first);
+        });
+      }
+
+      urls.forEach((raw) => {
+        const abs = toAbsoluteUrl(raw);
+        if (!abs) return;
+        if (!isHttpUrl(abs)) return;
+        results.push({
+          url: abs,
+          type: "background",
+          tag: el.tagName,
+          filename: deriveFilenameFromUrl(abs),
+        });
+      });
+    });
+
+    return results;
+  }
+
+  // Collect
+  const assets = [
+    ...collectImages(),
+    ...collectVideos(),
+    ...collectBackgroundImages(),
+  ];
+
+  // Deduplicate by normalized URL
+  const seen = new Set();
+  const deduped = [];
+  for (const asset of assets) {
+    const key = asset.url;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    deduped.push(asset);
+  }
+
+  return deduped;
 }
 
 // Example usage
-console.log(getAssetsFromPage());
+console.log("Collected assets:", getAssetsFromPage());

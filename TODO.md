@@ -26,18 +26,19 @@ Notes: Establish baseline MV3 scaffolding and dev ergonomics.
 ### Phase 1 — Asset Extraction Engine (MVP)
 
 Notes: Inject a scraper into the active tab and gather asset URLs + basic metadata.
+Note: Implemented inline via `chrome.scripting.executeScript` for now; can be extracted to `scraper.js` later.
 
-- [ ] Implement `scraper.js` content script that extracts from:
-  - [ ] `<img>`, `<video>`, `<source>`, `<picture>` (all nested sources)
-  - [ ] CSS `background-image` (computed styles, inline styles)
-- [ ] Normalize and deduplicate URLs (prefer absolute URLs; handle `srcset`).
-- [ ] Collect lightweight metadata when feasible (type, guessed filename, element tag).
-- [ ] Decide behavior for `data:` URLs (include or exclude; default exclude for MVP).
-- [ ] Provide an injection path using `chrome.scripting.executeScript` from the popup or service worker.
-- [ ] Wire messaging: request from `popup.js` → execute scraper in active tab → return results to popup.
+- [x] Implement `scraper.js` content script that extracts from:
+  - [x] `<img>`, `<video>`, `<source>`, `<picture>` (all nested sources)
+  - [x] CSS `background-image` (computed styles, inline styles)
+- [x] Normalize and deduplicate URLs (prefer absolute URLs; handle `srcset`).
+- [x] Collect lightweight metadata when feasible (type, guessed filename, element tag).
+- [x] Decide behavior for `data:` URLs (include or exclude; default exclude for MVP).
+- [x] Provide an injection path using `chrome.scripting.executeScript` from the popup or service worker.
+- [x] Wire messaging: request from `popup.js` → execute scraper in active tab → return results to popup.
       Acceptance:
-- [ ] On typical pages, scraping completes < 1s and returns a non-empty deduped list.
-- [ ] No console errors in the page, popup, or service worker.
+- [x] On typical pages, scraping completes < 1s and returns a non-empty deduped list.
+- [x] No console errors in the page, popup, or service worker.
 
 ---
 
@@ -47,38 +48,21 @@ Notes: Present results, support quick scanning/preview, and click-through.
 
 - [ ] Render grid/list of assets with:
   - [ ] Thumbnail for images (`<img>` with `loading="lazy"`).
-  - [ ] Playable preview for videos (`<video controls muted>` minimal).
+  - [ ] Video previews (`<video controls muted preload="metadata" playsinline>`; no autoplay).
   - [ ] Fallback label for unsupported previews.
 - [ ] Show URL (clickable, truncated visually; full in tooltip).
 - [ ] Add basic empty, loading, and error states.
 - [ ] Add a button to re-run “Get Assets”.
 - [ ] Add “Open All in New Tab” button that opens grid gallery (`gallery.html`).
-- [ ] Clicking an item opens viewer tab (`viewer.html?src=<encodedURL>`).
       Acceptance:
 - [ ] User can fetch and preview assets from the popup on two different sites.
-- [ ] Clicking an item opens a new viewer tab with the selected item.
+- [ ] “Open All in New Tab” opens the gallery with current results.
 
 ---
 
-### Phase 3 — Viewer Tab (MVP)
+### Phase 3 — Gallery (Primary Inspection Surface, MVP)
 
-Notes: Dedicated page to inspect a single asset inside a styled container with metadata.
-
-- [ ] Create `viewer.html` and `viewer.js`.
-- [ ] Parse `src` from query string; validate it before rendering.
-- [ ] Render asset inside a responsive/styled container (max-size, background, padding).
-- [ ] Display metadata: URL, type (image/video/background), and dimensions if available.
-- [ ] Add “Open Original” link (opens in a new tab).
-- [ ] Handle errors (broken URL, blocked by CORS); show fallback message.
-      Acceptance:
-- [ ] Images and videos render correctly for at least two test pages.
-- [ ] Metadata and “Open Original” link are visible and functional.
-
----
-
-### Phase 3b — Gallery Tab (MVP)
-
-Notes: Open a new extension tab to show all assets in a responsive grid.
+Notes: New tab that shows all assets in a responsive grid. Tiles open originals.
 
 - [ ] Create `gallery.html` and `gallery.js`.
 - [ ] From popup, implement “Open All in New Tab”:
@@ -87,13 +71,22 @@ Notes: Open a new extension tab to show all assets in a responsive grid.
 - [ ] In `gallery.js`:
   - [ ] Load assets from `chrome.storage.session.get('assetList')`.
   - [ ] Render a responsive CSS grid (3–5 columns; adjusts with viewport).
-  - [ ] Lazy-load thumbnails; videos muted and `playsinline`.
-  - [ ] Each tile opens single viewer (`viewer.html?src=<encodedURL>`).
+  - [ ] Lazy-load thumbnails; videos muted, `preload="metadata"`, `playsinline`.
+  - [ ] Each tile opens the original asset URL in a new tab.
+  - [ ] Optional: inline “Details” overlay shows metadata (URL, type, dimensions).
 - [ ] Handle empty/error states and large lists (consider virtualization or chunked rendering).
       Acceptance:
 - [ ] New tab opens showing all assets in a grid on test pages.
-- [ ] Clicking a tile opens the single-asset viewer.
+- [ ] Clicking a tile opens the original asset in a new browser tab.
 - [ ] Grid renders quickly (< ~1s initial view) and scrolls smoothly.
+
+---
+
+### Phase 3b — (Cancelled) Viewer Tab
+
+Notes: Replaced by gallery as primary surface. If needed later, implement as optional overlay.
+
+- [ ] Cancelled.
 
 ---
 

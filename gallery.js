@@ -102,6 +102,14 @@ function renderGrid() {
   grid.innerHTML = "";
   const frag = document.createDocumentFragment();
   const view = applyFiltersAndSorting(state.assets);
+  const statusEl = document.getElementById("status");
+  if (statusEl) {
+    if (view.length === state.assets.length) {
+      statusEl.textContent = `Showing ${view.length} assets`;
+    } else {
+      statusEl.textContent = `Showing ${view.length} of ${state.assets.length} assets`;
+    }
+  }
   view.forEach((asset, index) => {
     const { url, type } = asset;
     const tile = document.createElement("div");
@@ -252,6 +260,298 @@ async function downloadSelected() {
   await Promise.all(workers);
 }
 
+// ---- ZIP (store-only) bundling utilities ----
+const CRC32_TABLE = (() => {
+  const table = new Uint32Array(256);
+  for (let i = 0; i < 256; i++) {
+    let c = i;
+    for (let j = 0; j < 8; j++) {
+      c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
+    }
+    table[i] = c >>> 0;
+  }
+  return table;
+})();
+
+function crc32(data) {
+  let crc = 0xffffffff;
+  for (let i = 0; i < data.length; i++) {
+    const byte = data[i];
+    crc = CRC32_TABLE[(crc ^ byte) & 0xff] ^ (crc >>> 8);
+  }
+  return (crc ^ 0xffffffff) >>> 0;
+}
+
+function encodeUtf8(str) {
+  return new TextEncoder().encode(str);
+}
+
+function writeUint16LE(buffer, value) {
+  buffer.push(value & 0xff, (value >>> 8) & 0xff);
+}
+
+function writeUint32LE(buffer, value) {
+  buffer.push(
+    value & 0xff,
+    (value >>> 8) & 0xff,
+    (value >>> 16) & 0xff,
+    (value >>> 24) & 0xff
+  );
+}
+
+function msToDosDateTime(ms) {
+  const d = new Date(ms);
+  let year = d.getFullYear();
+  const month = d.getMonth() + 1;
+  const day = d.getDate();
+  const hours = d.getHours();
+  const minutes = d.getMinutes();
+  const seconds = Math.floor(d.getSeconds() / 2); // 2-second resolution
+  if (year < 1980) year = 1980;
+  const dosDate = ((year - 1980) << 9) | (month << 5) | day;
+  const dosTime = (hours << 11) | (minutes << 5) | seconds;
+  return { dosDate, dosTime };
+}
+
+function concatUint8Arrays(arrays) {
+  const total = arrays.reduce((sum, a) => sum + a.length, 0);
+  const out = new Uint8Array(total);
+  let offset = 0;
+  for (const a of arrays) {
+    out.set(a, offset);
+    offset += a.length;
+  }
+  return out;
+}
+
+function zipStore(entries) {
+  // entries: [{ name: string, data: Uint8Array, crc32: number, size: number }]
+  const localParts = [];
+  const centralParts = [];
+  const utf8Flag = 0x0800; // indicate UTF-8 filenames
+  const version = 20; // 2.0
+  let offset = 0;
+  const now = Date.now();
+  const { dosDate, dosTime } = msToDosDateTime(now);
+
+  const localHeaderSig = 0x04034b50;
+  const centralHeaderSig = 0x02014b50;
+  const endSig = 0x06054b50;
+
+  const localChunks = [];
+  const offsets = [];
+
+  for (const e of entries) {
+    const nameBytes = encodeUtf8(e.name.replace(/\\\\/g, "/"));
+    const lh = [];
+    writeUint32LE(lh, localHeaderSig); // local file header sig
+    writeUint16LE(lh, version); // version needed
+    writeUint16LE(lh, utf8Flag); // general purpose bit flag (UTF-8)
+    writeUint16LE(lh, 0); // compression method (store)
+    writeUint16LE(lh, dosTime);
+    writeUint16LE(lh, dosDate);
+    writeUint32LE(lh, e.crc32 >>> 0);
+    writeUint32LE(lh, e.size >>> 0); // compressed size
+    writeUint32LE(lh, e.size >>> 0); // uncompressed size
+    writeUint16LE(lh, nameBytes.length);
+    writeUint16LE(lh, 0); // extra length
+    const lhArr = new Uint8Array(lh);
+    const part = concatUint8Arrays([lhArr, nameBytes, e.data]);
+    localChunks.push(part);
+    offsets.push(offset);
+    offset += part.length;
+
+    // Central directory for this entry
+    const ch = [];
+    writeUint32LE(ch, centralHeaderSig);
+    writeUint16LE(ch, (3 << 8) | 63); // version made by (arbitrary: Unix 3.63)
+    writeUint16LE(ch, version); // version needed to extract
+    writeUint16LE(ch, utf8Flag);
+    writeUint16LE(ch, 0); // method store
+    writeUint16LE(ch, dosTime);
+    writeUint16LE(ch, dosDate);
+    writeUint32LE(ch, e.crc32 >>> 0);
+    writeUint32LE(ch, e.size >>> 0);
+    writeUint32LE(ch, e.size >>> 0);
+    writeUint16LE(ch, nameBytes.length);
+    writeUint16LE(ch, 0); // extra length
+    writeUint16LE(ch, 0); // file comment length
+    writeUint16LE(ch, 0); // disk number start
+    writeUint16LE(ch, 0); // internal file attrs
+    writeUint32LE(ch, 0); // external file attrs
+    writeUint32LE(ch, offsets[offsets.length - 1]); // relative offset
+    const chArr = new Uint8Array(ch);
+    centralParts.push(concatUint8Arrays([chArr, nameBytes]));
+  }
+
+  const localAll = concatUint8Arrays(localChunks);
+  const centralAll = concatUint8Arrays(centralParts);
+
+  const end = [];
+  writeUint32LE(end, endSig);
+  writeUint16LE(end, 0); // number of this disk
+  writeUint16LE(end, 0); // disk with start of central dir
+  writeUint16LE(end, entries.length);
+  writeUint16LE(end, entries.length);
+  writeUint32LE(end, centralAll.length);
+  writeUint32LE(end, localAll.length); // offset of central dir = size of local area
+  writeUint16LE(end, 0); // comment length
+  const endArr = new Uint8Array(end);
+
+  const finalBytes = concatUint8Arrays([localAll, centralAll, endArr]);
+  return new Blob([finalBytes], { type: "application/zip" });
+}
+
+function getReferrerForUrl(url) {
+  try {
+    const u = new URL(url);
+    const host = u.hostname.toLowerCase();
+    if (host.endsWith("midjourney.com")) return "https://www.midjourney.com/";
+  } catch (_) {}
+  return undefined;
+}
+
+async function fetchAsUint8(url) {
+  const ref = getReferrerForUrl(url);
+  const res = await fetch(url, {
+    mode: "cors",
+    credentials: "include",
+    referrer: ref,
+    referrerPolicy: ref ? "strict-origin-when-cross-origin" : undefined,
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  const buf = await res.arrayBuffer();
+  return new Uint8Array(buf);
+}
+
+function buildZipEntryName(url) {
+  // Reuse buildFilename but ensure forward slashes inside zip
+  const path = buildFilename(url);
+  return path.replace(/\\\\/g, "/");
+}
+
+function crc32HexOfString(str) {
+  const bytes = new TextEncoder().encode(str);
+  const v = crc32(bytes);
+  return ("00000000" + v.toString(16)).slice(-8);
+}
+
+async function downloadZipSelected() {
+  const saveAs = document.getElementById("saveAsToggle").checked;
+  const keys = Array.from(state.selected);
+  if (!keys.length) return;
+
+  const statusEl = document.getElementById("progressSummary");
+  const total = keys.length;
+  let completed = 0;
+  let skipped = 0;
+  let failed = 0;
+  const failedUrls = [];
+  const update = () => {
+    statusEl.textContent = `Preparing ZIP: ${completed}/${total} • Skipped: ${skipped} • Failed: ${failed}`;
+  };
+  update();
+
+  const concurrency = 4;
+  let cursor = 0;
+  const entries = new Array(keys.length);
+  const usedNames = new Set();
+
+  async function worker() {
+    while (cursor < keys.length) {
+      const myIndex = cursor++;
+      const key = keys[myIndex];
+      const asset = state.assets.find((a) => getUrlKey(a) === key);
+      if (!asset) {
+        failed++;
+        update();
+        continue;
+      }
+      if (isStreamingUrl(asset.url)) {
+        skipped++;
+        update();
+        continue;
+      }
+      try {
+        const data = await fetchAsUint8(asset.url);
+        const crc = crc32(data);
+        let name = buildZipEntryName(asset.url);
+        if (usedNames.has(name)) {
+          const dot = name.lastIndexOf(".");
+          const suffix = crc32HexOfString(asset.url).slice(-6);
+          if (dot > -1) {
+            name = `${name.slice(0, dot)}__${suffix}${name.slice(dot)}`;
+          } else {
+            name = `${name}__${suffix}`;
+          }
+        }
+        usedNames.add(name);
+        entries[myIndex] = { name, data, crc32: crc, size: data.length };
+        completed++;
+        update();
+      } catch (e) {
+        failed++;
+        failedUrls.push(asset.url);
+        update();
+      }
+    }
+  }
+
+  await Promise.all(
+    Array.from({ length: Math.min(concurrency, keys.length) }, () => worker())
+  );
+
+  const filtered = entries.filter(Boolean);
+  if (!filtered.length) {
+    statusEl.textContent = "Nothing to zip.";
+    return;
+  }
+  const blob = zipStore(filtered);
+  const url = URL.createObjectURL(blob);
+  const ts = new Date();
+  const pad = (n) => String(n).padStart(2, "0");
+  const zipName = `AssetExtractor/Assets-${ts.getFullYear()}${pad(
+    ts.getMonth() + 1
+  )}${pad(ts.getDate())}-${pad(ts.getHours())}${pad(ts.getMinutes())}${pad(
+    ts.getSeconds()
+  )}.zip`;
+  try {
+    await chrome.downloads.download({ url, filename: zipName, saveAs });
+    statusEl.textContent = `ZIP download started (${filtered.length} files).`;
+  } catch (e) {
+    // Fallback: anchor click
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = zipName.split("/").pop();
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    statusEl.textContent = `ZIP prepared (${filtered.length} files).`;
+  }
+
+  // Fallback: download any failed items individually to avoid missing assets
+  if (failedUrls.length) {
+    statusEl.textContent += ` Falling back for ${failedUrls.length} items...`;
+    const concurrency = 3;
+    let idx = 0;
+    async function workerDl() {
+      while (idx < failedUrls.length) {
+        const i = idx++;
+        const u = failedUrls[i];
+        try {
+          await downloadOne(u, saveAs);
+        } catch (_) {}
+      }
+    }
+    await Promise.all(
+      Array.from({ length: Math.min(concurrency, failedUrls.length) }, () =>
+        workerDl()
+      )
+    );
+    statusEl.textContent += ` done.`;
+  }
+}
+
 chrome.downloads.onChanged.addListener((delta) => {
   if (!delta || typeof delta.id !== "number") return;
   // map download id to asset index
@@ -293,6 +593,8 @@ chrome.downloads.onChanged.addListener((delta) => {
   document
     .getElementById("downloadSelected")
     .addEventListener("click", downloadSelected);
+  const zipBtn = document.getElementById("downloadZip");
+  if (zipBtn) zipBtn.addEventListener("click", downloadZipSelected);
   document.getElementById("selectAll").addEventListener("change", (e) => {
     // Avoid re-rendering to preserve media playback; just toggle checkboxes in place
     state.selected.clear();

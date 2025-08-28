@@ -122,8 +122,8 @@ Notes: Help users focus by narrowing the list.
 - [x] Sort by filename, URL, dimensions, or type.
 - [x] Persist filter state in popup (in-memory is fine; no storage required).
       Acceptance:
-- [ ] Filters change the visible list as expected.
-- [ ] Sorting applies without performance regressions (>95% responsiveness preserved).
+- [x] Filters change the visible list as expected.
+- [x] Sorting applies without performance regressions (>95% responsiveness preserved).
 
 ---
 

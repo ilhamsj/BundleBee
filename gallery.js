@@ -496,6 +496,25 @@ function buildZipEntryName(url) {
   return path.replace(/\\\\/g, "/");
 }
 
+function parseDomainAndCleanName(url) {
+  try {
+    const u = new URL(url);
+    const domain = u.hostname.replace(/[^a-z0-9.-]/gi, "_");
+    const last = decodeURIComponent(
+      u.pathname.split("/").filter(Boolean).pop() || domain
+    );
+    const clean = last.replace(/[^a-z0-9._-]/gi, "_") || "file";
+    return { domain, clean };
+  } catch (_) {
+    return { domain: "unknown", clean: "file" };
+  }
+}
+
+function buildZipEntryNameWithRoot(rootName, url, singleDomain) {
+  const { domain, clean } = parseDomainAndCleanName(url);
+  return `${rootName}/${domain}/${clean}`;
+}
+
 function crc32HexOfString(str) {
   const bytes = new TextEncoder().encode(str);
   const v = crc32(bytes);
@@ -522,6 +541,25 @@ async function downloadZipSelected() {
   let cursor = 0;
   const entries = new Array(keys.length);
   const usedNames = new Set();
+  const ts = new Date();
+  const pad = (n) => String(n).padStart(2, "0");
+  const yyyy = ts.getFullYear();
+  const mm = pad(ts.getMonth() + 1);
+  const dd = pad(ts.getDate());
+  const hh = pad(ts.getHours());
+  const mi = pad(ts.getMinutes());
+  const ss = pad(ts.getSeconds());
+  const domainSet = new Set();
+  keys.forEach((k) => {
+    try {
+      const u = new URL(k);
+      domainSet.add(u.hostname.replace(/[^a-z0-9.-]/gi, "_"));
+    } catch (_) {}
+  });
+  const singleDomain = domainSet.size === 1 ? Array.from(domainSet)[0] : null;
+  const rootName = singleDomain
+    ? `${singleDomain}-${yyyy}${mm}${dd}-${hh}${mi}${ss}`
+    : `Assets-${yyyy}${mm}${dd}-${hh}${mi}${ss}`;
 
   async function worker() {
     while (cursor < keys.length) {
@@ -541,7 +579,11 @@ async function downloadZipSelected() {
       try {
         const data = await fetchAsUint8(asset.url);
         const crc = crc32(data);
-        let name = buildZipEntryName(asset.url);
+        let name = buildZipEntryNameWithRoot(
+          rootName,
+          asset.url,
+          !!singleDomain
+        );
         if (usedNames.has(name)) {
           const dot = name.lastIndexOf(".");
           const suffix = crc32HexOfString(asset.url).slice(-6);
@@ -574,13 +616,7 @@ async function downloadZipSelected() {
   }
   const blob = zipStore(filtered);
   const url = URL.createObjectURL(blob);
-  const ts = new Date();
-  const pad = (n) => String(n).padStart(2, "0");
-  const zipName = `AssetExtractor/Assets-${ts.getFullYear()}${pad(
-    ts.getMonth() + 1
-  )}${pad(ts.getDate())}-${pad(ts.getHours())}${pad(ts.getMinutes())}${pad(
-    ts.getSeconds()
-  )}.zip`;
+  const zipName = `AssetExtractor/${rootName}.zip`;
   try {
     await chrome.downloads.download({ url, filename: zipName, saveAs });
     statusEl.textContent = `ZIP download started (${filtered.length} files).`;

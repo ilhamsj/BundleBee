@@ -122,6 +122,10 @@ function renderGrid() {
   const zipBtn = document.getElementById("downloadZip");
   if (selBtn) selBtn.style.display = hasEntries ? "inline-block" : "none";
   if (zipBtn) zipBtn.style.display = hasEntries ? "inline-block" : "none";
+  // Also ensure disabled state matches current selection
+  const disable = state.selected.size === 0;
+  if (selBtn) selBtn.disabled = disable;
+  if (zipBtn) zipBtn.disabled = disable;
   view.forEach((asset, index) => {
     const { url, type } = asset;
     const tile = document.createElement("div");
@@ -719,6 +723,13 @@ chrome.downloads.onChanged.addListener((delta) => {
       renderGrid();
     });
   }
+  // Initialize buttons disabled before assets load
+  (function primeButtons() {
+    const selBtn = document.getElementById("downloadSelected");
+    const zipBtn = document.getElementById("downloadZip");
+    if (selBtn) selBtn.disabled = true;
+    if (zipBtn) zipBtn.disabled = true;
+  })();
   loadAssets();
 })();
 

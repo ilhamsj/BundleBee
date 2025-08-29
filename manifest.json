@@ -1,8 +1,13 @@
 {
   "manifest_version": 3,
-  "name": "Jade Asset URL Extractor",
+  "name": "Bundle Bee - Asset URL Extractor",
   "version": "1.0",
   "description": "Extract all image and video URLs from the current page.",
+  "icons": {
+    "16": "icon.webp",
+    "48": "icon.webp",
+    "128": "icon.webp"
+  },
   "permissions": [
     "activeTab",
     "scripting",
@@ -14,7 +19,7 @@
     "https://*/*"
   ],
   "action": {
-    "default_popup": "popup.html",
+    "default_popup": "index.html",
     "default_icon": {
       "16": "icon.webp",
       "48": "icon.webp",

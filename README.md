@@ -134,26 +134,26 @@ A Chrome extension that allows users to **extract, preview, filter, view, and do
 ## 9. Feasibility Review (Senior Dev)
 
 - Core: Get Assets
-  - :check Extract from `<img>`, `<video>`, `<source>`, `<picture>`
-  - :check Extract CSS `background-image` URLs (computed styles; ignore gradients/data URIs)
-  - :check Deduplicate URLs (normalize to absolute; consider stripping hashes)
+  - :white_check_mark: Extract from `<img>`, `<video>`, `<source>`, `<picture>`
+  - :white_check_mark: Extract CSS `background-image` URLs (computed styles; ignore gradients/data URIs)
+  - :white_check_mark: Deduplicate URLs (normalize to absolute; consider stripping hashes)
 - Preview in Popup
-  - :check Image thumbnails (lazy-loaded)
-  - :check Video previews (muted/controls; autoplay disabled)
-  - :check Fallback text for unsupported previews
+  - :white_check_mark: Image thumbnails (lazy-loaded)
+  - :white_check_mark: Video previews (muted/controls; autoplay disabled)
+  - :white_check_mark: Fallback text for unsupported previews
 - Gallery (Primary)
-  - :check `gallery.html` responsive grid; recommend virtualization for 300+ items
-  - :check Handoff via `chrome.storage.session` (ephemeral; MV3)
-  - :check Tiles open original in new tab; optional inline details overlay
+  - :white_check_mark: `gallery.html` responsive grid; recommend virtualization for 300+ items
+  - :white_check_mark: Handoff via `chrome.storage.session` (ephemeral; MV3)
+  - :white_check_mark: Tiles open original in new tab; optional inline details overlay
 - Multi-Select & Download
-  - :check One-by-one via `chrome.downloads.download` (public URLs; auth-protected may fail)
-  - :check ZIP via JSZip (requires fetching blobs; needs `host_permissions`; large memory usage risk)
+  - :white_check_mark: One-by-one via `chrome.downloads.download` (public URLs; auth-protected may fail)
+  - :white_check_mark: ZIP via JSZip (requires fetching blobs; needs `host_permissions`; large memory usage risk)
 - Filtering
-  - :check By type (image/video/background)
-  - :check By dimensions (measure lazily; background images expensive to measure)
+  - :white_check_mark: By type (image/video/background)
+  - :white_check_mark: By dimensions (measure lazily; background images expensive to measure)
   - :x By file size via headers is unreliable due to CORS; treat as best-effort/optional
 - Export
-  - :check CSV and JSON of URLs + metadata
+  - :white_check_mark: CSV and JSON of URLs + metadata
 - Sorting
-  - :check By filename/URL/type
-  - :check By dimensions (after measurement; may be missing for some assets)
+  - :white_check_mark: By filename/URL/type
+  - :white_check_mark: By dimensions (after measurement; may be missing for some assets)

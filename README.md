@@ -1,3 +1,5 @@
+Demo: https://youtu.be/r18FVXdMl5M
+
 # 📄 PRD: Chrome Extension – Asset Extractor
 
 ## 1. Overview
